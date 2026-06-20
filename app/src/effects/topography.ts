@@ -1,293 +1,136 @@
 import * as THREE from 'three';
-import { SimplexNoise } from 'three-stdlib';
-import { MeshLineGeometry, MeshLineMaterial } from 'meshline';
 
-function clamp(val: number, min: number, max: number): number {
-  return Math.min(Math.max(val, min), max);
+const noiseGLSL = `
+// Classic 3D Simplex Noise by Stefan Gustavson
+vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
+vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+
+float snoise(vec3 v){
+  const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
+  const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
+
+  vec3 i  = floor(v + dot(v, C.yyy) );
+  vec3 x0 =   v - i + dot(i, C.xxx) ;
+
+  vec3 g = step(x0.yzx, x0.xyz);
+  vec3 l = 1.0 - g;
+  vec3 i1 = min( g.xyz, l.zxy );
+  vec3 i2 = max( g.xyz, l.zxy );
+
+  vec3 x1 = x0 - i1 + 1.0 * C.xxx;
+  vec3 x2 = x0 - i2 + 2.0 * C.xxx;
+  vec3 x3 = x0 - D.yyy;
+
+  i = mod(i, 289.0 );
+  vec4 p = permute( permute( permute(
+             i.z + vec4(0.0, i1.z, i2.z, 1.0) )
+           + i.y + vec4(0.0, i1.y, i2.y, 1.0) )
+           + i.x + vec4(0.0, i1.x, i2.x, 1.0) );
+
+  float n_ = 0.142857142857;
+  vec3  ns = n_ * D.wyz - D.xzx;
+
+  vec4 j = p - 49.0 * floor(p * ns.z *ns.z);
+
+  vec4 x_ = floor(j * ns.z);
+  vec4 y_ = floor(j - 7.0 * x_ );
+
+  vec4 x = x_ *ns.x + ns.yyyy;
+  vec4 y = y_ *ns.x + ns.yyyy;
+  vec4 h = 1.0 - abs(x) - abs(y);
+
+  vec4 b0 = vec4( x.xy, y.xy );
+  vec4 b1 = vec4( x.zw, y.zw );
+
+  vec4 s0 = floor(b0)*2.0 + 1.0;
+  vec4 s1 = floor(b1)*2.0 + 1.0;
+  vec4 sh = -step(h, vec4(0.0));
+
+  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
+  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
+
+  vec3 p0 = vec3(a0.xy,h.x);
+  vec3 p1 = vec3(a0.zw,h.y);
+  vec3 p2 = vec3(a1.xy,h.z);
+  vec3 p3 = vec3(a1.zw,h.w);
+
+  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+  p0 *= norm.x;
+  p1 *= norm.y;
+  p2 *= norm.z;
+  p3 *= norm.w;
+
+  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+  m = m * m;
+  return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1),
+                                dot(p2,x2), dot(p3,x3) ) );
 }
+`;
 
-// Seeded random number generator
-function seededRandom(seed: number): () => number {
-  let s = seed;
-  return () => {
-    s = (s * 16807 + 0) % 2147483647;
-    return (s - 1) / 2147483646;
-  };
+const vertexShader = `
+varying vec2 vUv;
+varying vec3 vPosition;
+
+void main() {
+  vUv = uv;
+  vPosition = position;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }
+`;
 
-function createNumberGenerator(seed: number) {
-  const rng = seededRandom(seed);
-  return { random: rng };
+const fragmentShader = `
+uniform float uTime;
+uniform float uHeights[10];
+uniform float uLineWidth;
+uniform float uScale;
+uniform float uSpeed;
+
+varying vec2 vUv;
+varying vec3 vPosition;
+
+${noiseGLSL}
+
+void main() {
+  // Scale position for noise density
+  vec3 noisePos = vec3(vPosition.xy * uScale, uTime * uSpeed);
+  
+  // Calculate simplex noise (two octaves)
+  float e = snoise(noisePos);
+  float de = 0.75 * snoise(noisePos + vec3(80.0, 80.0, 80.0));
+  
+  // Combine noise and map to [0.0, 1.0]
+  float h = clamp(((e + 0.75 * de) / 1.75) * 0.5 + 0.5, 0.0, 1.0);
+  
+  // Compute distance-field contour lines using derivatives for uniform width
+  float lineMask = 0.0;
+  float dh = fwidth(h);
+  for (int i = 0; i < 10; i++) {
+    float dist = abs(h - uHeights[i]) / (dh + 0.0001);
+    float intensity = smoothstep(uLineWidth, uLineWidth - 1.0, dist);
+    lineMask = max(lineMask, intensity);
+  }
+  
+  // Brand color scheme colors
+  vec3 bgCol = vec3(44.0/255.0, 42.0/255.0, 107.0/255.0); // #2C2A6B (Dark Blue)
+  vec3 goldCol = vec3(247.0/255.0, 197.0/255.0, 24.0/255.0); // #F7C518 (Yellow/Gold)
+  vec3 coralCol = vec3(193.0/255.0, 75.0/255.0, 60.0/255.0); // #C14B3C (Coral/Red)
+  
+  // Map line colors dynamically to height
+  vec3 lineCol = mix(coralCol, goldCol, h);
+  
+  // Combine background and contour lines
+  vec3 finalColor = mix(bgCol, lineCol, lineMask);
+  
+  gl_FragColor = vec4(finalColor, 1.0);
 }
+`;
 
-class RDP {
-  threshold: number;
-  constructor(threshold = 0.8) {
-    this.threshold = threshold;
-  }
-  static distToSegment(p: THREE.Vector2, v: THREE.Vector2, w: THREE.Vector2): number {
-    const l2 = v.distanceToSquared(w);
-    if (l2 === 0) return p.distanceTo(v);
-    const t = Math.max(0, Math.min(1, p.clone().sub(v).dot(w.clone().sub(v)) / l2));
-    return p.distanceTo(v.clone().add(w.clone().sub(v)).multiplyScalar(t));
-  }
-  simplify(points: THREE.Vector2[]): THREE.Vector2[] {
-    if (points.length < 3) return points;
-    let maxIndex = 0;
-    let maxDist = 0;
-    for (let i = 1; i < points.length - 1; i++) {
-      const d = RDP.distToSegment(points[i], points[0], points[points.length - 1]);
-      if (d > maxDist) {
-        maxDist = d;
-        maxIndex = i;
-      }
-    }
-    if (maxDist > this.threshold) {
-      const left = this.simplify(points.slice(0, maxIndex + 1));
-      const right = this.simplify(points.slice(maxIndex));
-      return [...left, ...right.slice(1)];
-    }
-    return [points[0], points[points.length - 1]];
-  }
-}
-
-class NoiseSample {
-  ns: SimplexNoise;
-  constructor(seed: number) {
-    this.ns = new SimplexNoise(createNumberGenerator(seed));
-  }
-  sample(x: number, y: number, z: number): number {
-    const e = this.ns.noise(x, y);
-    const de = 0.75 * this.ns.noise(x + 80, y + 80);
-    // Use z as additional offset for time evolution
-    const timeOffset = z * 0.1;
-    return clamp(THREE.MathUtils.mapLinear(e + de + timeOffset, -1.5, 1.5, 0.2, 0.8), 0, 1);
-  }
-}
-
-class Marcher {
-  thresholdList: number[];
-  pointsList: THREE.Vector2[][];
-  lines: THREE.Vector2[];
-  constructor() {
-    this.thresholdList = [];
-    this.pointsList = [];
-    this.lines = [];
-  }
-  march(sampler: (x: number, y: number) => number, size: number, minHeight: number, maxHeight: number, _maxLen = 200) {
-    const heightList = [...Array(10)].map((_, i) =>
-      THREE.MathUtils.mapLinear(1 - Math.pow(Math.abs(i - 5) / 5, 1 / 3), 0, 1, minHeight, maxHeight)
-    );
-    for (let j = 0; j < 2; j++) {
-      for (let k = 0; k < 2; k++) {
-        const offsetX = j * size;
-        const offsetY = k * size;
-        const res = 100;
-        const segmentSize = size / res;
-        for (let x = 0; x < res; x++) {
-          for (let y = 0; y < res; y++) {
-            const gx = x * segmentSize + offsetX;
-            const gy = y * segmentSize + offsetY;
-            const x1 = gx + segmentSize;
-            const y1 = gy + segmentSize;
-            const v1 = sampler(gx, gy);
-            const v2 = sampler(x1, gy);
-            const v3 = sampler(x1, y1);
-            const v4 = sampler(gx, y1);
-            const cell = [v1, v2, v3, v4];
-            for (const threshold of heightList) {
-              this.processCell(cell, threshold, gx, gy, segmentSize);
-            }
-          }
-        }
-      }
-    }
-  }
-  processCell(cell: number[], threshold: number, x: number, y: number, size: number) {
-    let c1: THREE.Vector2, c2: THREE.Vector2, c3: THREE.Vector2;
-    const bits = ((cell[0] < threshold ? 1 : 0) << 3) | ((cell[1] < threshold ? 1 : 0) << 2) | ((cell[2] < threshold ? 1 : 0) << 1) | (cell[3] < threshold ? 1 : 0);
-    switch (bits) {
-      case 0: return;
-      case 1:
-        c1 = this.interpolate(x, y + size, x, y, cell[3], cell[0], threshold);
-        c2 = this.interpolate(x + size, y, x, y, cell[1], cell[0], threshold);
-        this.addLine(c1, c2);
-        break;
-      case 2:
-        c1 = this.interpolate(x + size, y, x, y, cell[1], cell[0], threshold);
-        c2 = this.interpolate(x + size, y + size, x + size, y, cell[2], cell[1], threshold);
-        this.addLine(c1, c2);
-        break;
-      case 3:
-        c1 = this.interpolate(x, y + size, x, y, cell[3], cell[0], threshold);
-        c2 = this.interpolate(x + size, y + size, x + size, y, cell[2], cell[1], threshold);
-        this.addLine(c1, c2);
-        break;
-      case 4:
-        c1 = this.interpolate(x + size, y + size, x + size, y, cell[2], cell[1], threshold);
-        c2 = this.interpolate(x, y + size, x + size, y + size, cell[3], cell[2], threshold);
-        this.addLine(c1, c2);
-        break;
-      case 5:
-        c1 = this.interpolate(x, y + size, x, y, cell[3], cell[0], threshold);
-        c2 = this.interpolate(x + size, y, x, y, cell[1], cell[0], threshold);
-        c3 = this.interpolate(x, y + size, x + size, y + size, cell[3], cell[2], threshold);
-        this.addLine(c1, c2);
-        this.addLine(c3, c1);
-        break;
-      case 6:
-        c1 = this.interpolate(x + size, y, x, y, cell[1], cell[0], threshold);
-        c2 = this.interpolate(x, y + size, x + size, y + size, cell[3], cell[2], threshold);
-        this.addLine(c1, c2);
-        break;
-      case 7:
-        c1 = this.interpolate(x, y + size, x, y, cell[3], cell[0], threshold);
-        c2 = this.interpolate(x, y + size, x + size, y + size, cell[3], cell[2], threshold);
-        this.addLine(c1, c2);
-        break;
-      case 8:
-        c1 = this.interpolate(x, y + size, x, y, cell[3], cell[0], threshold);
-        c2 = this.interpolate(x, y + size, x + size, y + size, cell[3], cell[2], threshold);
-        this.addLine(c1, c2);
-        break;
-      case 9:
-        c1 = this.interpolate(x + size, y, x, y, cell[1], cell[0], threshold);
-        c2 = this.interpolate(x, y + size, x + size, y + size, cell[3], cell[2], threshold);
-        this.addLine(c1, c2);
-        break;
-      case 10:
-        c1 = this.interpolate(x + size, y, x, y, cell[1], cell[0], threshold);
-        c2 = this.interpolate(x, y + size, x, y, cell[3], cell[0], threshold);
-        c3 = this.interpolate(x + size, y + size, x + size, y, cell[2], cell[1], threshold);
-        this.addLine(c1, c2);
-        this.addLine(c3, c1);
-        break;
-      case 11:
-        c1 = this.interpolate(x + size, y + size, x + size, y, cell[2], cell[1], threshold);
-        c2 = this.interpolate(x, y + size, x + size, y + size, cell[3], cell[2], threshold);
-        this.addLine(c1, c2);
-        break;
-      case 12:
-        c1 = this.interpolate(x, y + size, x, y, cell[3], cell[0], threshold);
-        c2 = this.interpolate(x + size, y + size, x + size, y, cell[2], cell[1], threshold);
-        this.addLine(c1, c2);
-        break;
-      case 13:
-        c1 = this.interpolate(x + size, y, x, y, cell[1], cell[0], threshold);
-        c2 = this.interpolate(x + size, y + size, x + size, y, cell[2], cell[1], threshold);
-        this.addLine(c1, c2);
-        break;
-      case 14:
-        c1 = this.interpolate(x, y + size, x, y, cell[3], cell[0], threshold);
-        c2 = this.interpolate(x + size, y, x, y, cell[1], cell[0], threshold);
-        this.addLine(c1, c2);
-        break;
-      case 15: return;
-    }
-  }
-  interpolate(x1: number, y1: number, x2: number, y2: number, v1: number, v2: number, threshold: number): THREE.Vector2 {
-    const t = (threshold - v1) / (v2 - v1);
-    return new THREE.Vector2(x1 + t * (x2 - x1), y1 + t * (y2 - y1));
-  }
-  addLine(a: THREE.Vector2, b: THREE.Vector2) {
-    this.lines.push(a, b);
-  }
-  update(sampler: (x: number, y: number) => number, size: number, minHeight: number, maxHeight: number, config: any) {
-    this.march(sampler, size, minHeight, maxHeight, config.maxLen);
-    const pairs: THREE.Vector2[][] = [];
-    for (let i = 0; i < this.lines.length; i += 2) {
-      pairs.push([this.lines[i], this.lines[i + 1]]);
-    }
-    const lines = pairs.filter((pt) => pt[0].distanceTo(pt[1]) < config.maxLen);
-    this.lines = [];
-    for (const line of lines) {
-      this.lines.push(line[0], line[1]);
-    }
-    this.groupLines();
-    this.pointsList = this.pointsList.map((pt) => new RDP().simplify(pt));
-  }
-  groupLines() {
-    let line: THREE.Vector2[] = [this.lines[0], this.lines[1]];
-    for (let i = 2; i < this.lines.length; i += 2) {
-      if (this.lines[i].distanceTo(this.lines[i - 1]) < 1e-4) {
-        line.push(this.lines[i + 1]);
-      } else {
-        this.pointsList.push(line);
-        line = [this.lines[i], this.lines[i + 1]];
-      }
-    }
-    this.pointsList.push(line);
-  }
-}
-
-class ContourLineSystem {
-  scene: THREE.Scene;
-  lines: THREE.Mesh[];
-  maxLines: number;
-  baseMaterial: MeshLineMaterial;
-  resolution: THREE.Vector2;
-
-  constructor(scene: THREE.Scene, width: number, height: number) {
-    this.scene = scene;
-    this.lines = [];
-    this.maxLines = 500;
-    this.resolution = new THREE.Vector2(width, height);
-    this.baseMaterial = new MeshLineMaterial({
-      lineWidth: 0.05,
-      dashArray: 0,
-      dashOffset: 0,
-      dashRatio: 0.99,
-      opacity: 2,
-      color: new THREE.Color('#F7C518'),
-      resolution: this.resolution,
-    });
-    this.baseMaterial.transparent = true;
-    this.baseMaterial.depthWrite = false;
-  }
-
-  clear() {
-    for (const line of this.lines) {
-      this.scene.remove(line);
-      const geom = line.geometry as MeshLineGeometry;
-      if (geom) geom.dispose();
-      const mat = line.material as MeshLineMaterial;
-      if (mat) mat.dispose();
-    }
-    this.lines = [];
-  }
-
-  addLine(points: THREE.Vector2[]) {
-    if (this.lines.length >= this.maxLines) return;
-    const pts: THREE.Vector3[] = [];
-    for (const p of points) {
-      pts.push(new THREE.Vector3(p.x, p.y, 0));
-    }
-    const geometry = new MeshLineGeometry();
-    geometry.setPoints(pts);
-    const mat = new MeshLineMaterial({
-      lineWidth: 0.05,
-      dashArray: 0,
-      dashOffset: 0,
-      dashRatio: 0.99,
-      opacity: 2,
-      color: new THREE.Color('#F7C518'),
-      resolution: this.resolution.clone(),
-    });
-    mat.transparent = true;
-    mat.depthWrite = false;
-    const mesh = new THREE.Mesh(geometry, mat);
-    mesh.renderOrder = 10;
-    this.scene.add(mesh);
-    this.lines.push(mesh);
-  }
-
-  updateColors() {
-    const c = new THREE.Color();
-    for (let i = 0; i < this.lines.length; i++) {
-      c.setHSL(THREE.MathUtils.mapLinear(i % 256, 0, 256, 0.3, 0.5), 1, 0.5);
-      (this.lines[i].material as MeshLineMaterial).color = c.clone();
-    }
-  }
+interface TopographyConfig {
+  scale: number;
+  speed: number;
+  lineWidth: number;
+  minHeight: number;
+  maxHeight: number;
 }
 
 export class TopographyScene {
@@ -299,11 +142,11 @@ export class TopographyScene {
   camera!: THREE.PerspectiveCamera;
   clock: THREE.Clock;
   mesh!: THREE.Mesh;
-  cm!: ContourLineSystem;
-  config: any;
+  material!: THREE.ShaderMaterial;
+  config: TopographyConfig;
   disposed: boolean;
+  paused: boolean;
   rafId: number;
-  t: number;
   mouseX: number;
   mouseY: number;
 
@@ -313,32 +156,27 @@ export class TopographyScene {
     this.height = container.clientHeight;
     this.clock = new THREE.Clock();
     this.disposed = false;
+    this.paused = false;
     this.rafId = 0;
-    this.t = 0;
     this.mouseX = 0;
     this.mouseY = 0;
+    
     this.config = {
-      scale: 32,
-      size: 0.9,
-      minHeight: 0.2,
-      maxHeight: 0.8,
-      speed: 0.12,
-      strokeThickness: 1.1,
-      numStrokeColors: 256,
-      lightColor: '#F7C518',
-      darkColor: '#2C2A6B',
-      strokeColor: '#C14B3C',
-      maxLen: 200,
+      scale: 0.12, // Adjusted spatial noise density
+      speed: 0.08,  // Temporal evolution speed
+      lineWidth: 1.2, // Width in pixels on-screen
+      minHeight: 0.25,
+      maxHeight: 0.75,
     };
   }
 
   init() {
+    // Create Renderer with optimized pixel ratio capped at 1.5
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     this.renderer.setSize(this.width, this.height);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.container.appendChild(this.renderer.domElement);
+    
     this.renderer.domElement.style.width = '100%';
     this.renderer.domElement.style.height = '100%';
     this.renderer.domElement.style.display = 'block';
@@ -346,37 +184,38 @@ export class TopographyScene {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color('#2C2A6B');
 
-    this.camera = new THREE.PerspectiveCamera(45, this.width / this.height, 0.1, 10000);
+    this.camera = new THREE.PerspectiveCamera(45, this.width / this.height, 0.1, 100);
     this.camera.position.set(0, 0, 14);
 
-    const ambientLight = new THREE.AmbientLight(new THREE.Color('#ffffff'), 0.6);
-    this.scene.add(ambientLight);
-
-    const lightPositions = [[0, 20, 0], [0, -20, 0]];
-    for (const pos of lightPositions) {
-      const dirLight = new THREE.DirectionalLight(new THREE.Color('#ffffff'), 0.6);
-      dirLight.position.set(pos[0], pos[1], pos[2]);
-      dirLight.castShadow = true;
-      this.scene.add(dirLight);
-    }
-
-    this.mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(30, 30, 500, 500),
-      new THREE.MeshStandardMaterial({
-        polygonOffset: true,
-        polygonOffsetFactor: 1,
-        side: THREE.DoubleSide,
-        color: new THREE.Color('#2C2A6B'),
-        transparent: true,
-        opacity: 0.3,
-      })
+    // Compute spacing list for the 10 contour thresholds (matches original spacing curve)
+    const minHeight = this.config.minHeight;
+    const maxHeight = this.config.maxHeight;
+    const heights = new Float32Array(
+      Array.from({ length: 10 }, (_, i) =>
+        THREE.MathUtils.mapLinear(1 - Math.pow(Math.abs(i - 5) / 5, 1.0 / 3.0), 0, 1, minHeight, maxHeight)
+      )
     );
+
+    // Custom ShaderMaterial
+    this.material = new THREE.ShaderMaterial({
+      vertexShader,
+      fragmentShader,
+      uniforms: {
+        uTime: { value: 0 },
+        uHeights: { value: heights },
+        uLineWidth: { value: this.config.lineWidth },
+        uScale: { value: this.config.scale },
+        uSpeed: { value: this.config.speed },
+      },
+      depthWrite: false,
+    });
+
+    // Create simple flat PlaneGeometry with only 4 vertices (instead of 250,000!)
+    this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(32, 32, 1, 1), this.material);
     this.scene.add(this.mesh);
 
-    this.cm = new ContourLineSystem(this.scene, this.width * window.devicePixelRatio, this.height * window.devicePixelRatio);
-
-    this.container.addEventListener('mousemove', this.onMouseMove);
-    window.addEventListener('resize', this.onResize);
+    this.container.addEventListener('mousemove', this.onMouseMove, { passive: true });
+    window.addEventListener('resize', this.onResize, { passive: true });
 
     this.animate();
   }
@@ -388,36 +227,43 @@ export class TopographyScene {
   };
 
   onResize = () => {
+    if (this.disposed) return;
     this.width = this.container.clientWidth;
     this.height = this.container.clientHeight;
     this.camera.aspect = this.width / this.height;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(this.width, this.height);
-    this.cm.resolution.set(this.width * window.devicePixelRatio, this.height * window.devicePixelRatio);
   };
 
-  animate = () => {
+  pause() {
+    this.paused = true;
+    if (this.rafId) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = 0;
+    }
+  }
+
+  resume() {
     if (this.disposed) return;
+    if (this.paused) {
+      this.paused = false;
+      this.clock.getDelta(); // Reset clock delta
+      this.animate();
+    }
+  }
+
+  animate = () => {
+    if (this.disposed || this.paused) return;
     this.rafId = requestAnimationFrame(this.animate);
 
-    this.t += this.config.speed * 0.01;
-    const ns = new NoiseSample(Math.floor(Math.random() * 2 ** 16));
-    const sampler = (x: number, y: number) => ns.sample(x * this.config.scale, y * this.config.scale, this.t);
-    const marcher = new Marcher();
-    marcher.update(sampler, this.config.size, this.config.minHeight, this.config.maxHeight, this.config);
+    const time = this.clock.getElapsedTime();
+    this.material.uniforms.uTime.value = time;
 
-    this.cm.clear();
-    for (let i = 0; i < marcher.pointsList.length; i++) {
-      if (marcher.pointsList[i].length > 1) {
-        this.cm.addLine(marcher.pointsList[i]);
-      }
-    }
-    this.cm.updateColors();
-
-    this.mesh.rotation.z += 0.002;
-
-    const targetRotX = this.mouseY * 0.1;
-    const targetRotY = this.mouseX * 0.1;
+    // Apply rotation and tilt based on mouse interaction
+    this.mesh.rotation.z = time * 0.005;
+    
+    const targetRotX = this.mouseY * 0.08;
+    const targetRotY = this.mouseX * 0.08;
     this.mesh.rotation.x += (targetRotX - this.mesh.rotation.x) * 0.05;
     this.mesh.rotation.y += (targetRotY - this.mesh.rotation.y) * 0.05;
 
@@ -426,10 +272,20 @@ export class TopographyScene {
 
   destroy() {
     this.disposed = true;
+    this.paused = true;
     cancelAnimationFrame(this.rafId);
+    
     this.container.removeEventListener('mousemove', this.onMouseMove);
     window.removeEventListener('resize', this.onResize);
-    this.cm.clear();
+    
+    if (this.mesh) {
+      if (this.mesh.geometry) this.mesh.geometry.dispose();
+      this.scene.remove(this.mesh);
+    }
+    if (this.material) {
+      this.material.dispose();
+    }
+    
     if (this.renderer) {
       this.renderer.dispose();
       if (this.renderer.domElement.parentElement) {

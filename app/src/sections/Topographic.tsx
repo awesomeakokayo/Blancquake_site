@@ -13,10 +13,29 @@ export default function Topographic() {
 
   useEffect(() => {
     // Initialize topography scene
+    let sceneInstance: TopographyScene | null = null;
     if (canvasContainerRef.current && !sceneRef.current) {
-      const scene = new TopographyScene(canvasContainerRef.current);
-      scene.init();
-      sceneRef.current = scene;
+      sceneInstance = new TopographyScene(canvasContainerRef.current);
+      sceneInstance.init();
+      sceneRef.current = sceneInstance;
+    } else if (sceneRef.current) {
+      sceneInstance = sceneRef.current;
+    }
+
+    // Set up IntersectionObserver to play/pause rendering based on viewport visibility
+    let observer: IntersectionObserver | null = null;
+    if (sectionRef.current && sceneInstance) {
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            sceneRef.current?.resume();
+          } else {
+            sceneRef.current?.pause();
+          }
+        },
+        { threshold: 0.01 } // Trigger immediately when entering/leaving viewport
+      );
+      observer.observe(sectionRef.current);
     }
 
     // Text entrance animation
@@ -42,6 +61,9 @@ export default function Topographic() {
 
     return () => {
       ctx.revert();
+      if (observer) {
+        observer.disconnect();
+      }
       if (sceneRef.current) {
         sceneRef.current.destroy();
         sceneRef.current = null;

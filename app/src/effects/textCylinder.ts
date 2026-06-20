@@ -79,6 +79,7 @@ export class TextCylinderScene {
   textMesh1!: THREE.Mesh;
   textMesh2!: THREE.Mesh;
   disposed: boolean;
+  paused: boolean;
   rafId: number;
 
   constructor(container: HTMLElement) {
@@ -87,13 +88,14 @@ export class TextCylinderScene {
     this.height = container.clientHeight;
     this.clock = new THREE.Clock();
     this.disposed = false;
+    this.paused = false;
     this.rafId = 0;
   }
 
   init() {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setSize(this.width, this.height);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.container.appendChild(this.renderer.domElement);
     this.renderer.domElement.style.width = '100%';
     this.renderer.domElement.style.height = '100%';
@@ -144,11 +146,12 @@ export class TextCylinderScene {
     this.camera = new THREE.PerspectiveCamera(45, this.width / this.height, 0.1, 10000);
     this.camera.position.set(0, 0, 10);
 
-    window.addEventListener('resize', this.onResize);
+    window.addEventListener('resize', this.onResize, { passive: true });
     this.animate();
   }
 
   onResize = () => {
+    if (this.disposed) return;
     this.width = this.container.clientWidth;
     this.height = this.container.clientHeight;
     this.camera.aspect = this.width / this.height;
@@ -156,8 +159,25 @@ export class TextCylinderScene {
     this.renderer.setSize(this.width, this.height);
   };
 
-  animate = () => {
+  pause() {
+    this.paused = true;
+    if (this.rafId) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = 0;
+    }
+  }
+
+  resume() {
     if (this.disposed) return;
+    if (this.paused) {
+      this.paused = false;
+      this.clock.getDelta(); // Reset clock delta
+      this.animate();
+    }
+  }
+
+  animate = () => {
+    if (this.disposed || this.paused) return;
     this.rafId = requestAnimationFrame(this.animate);
 
     const scrollSpeed = 0.0004;
@@ -178,6 +198,7 @@ export class TextCylinderScene {
 
   destroy() {
     this.disposed = true;
+    this.paused = true;
     cancelAnimationFrame(this.rafId);
     window.removeEventListener('resize', this.onResize);
     if (this.renderer) {

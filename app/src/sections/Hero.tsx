@@ -8,6 +8,16 @@ export default function Hero() {
   const ctaRef = useRef<HTMLAnchorElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [videoLoaded, setVideoLoaded] = useState(false);
+  const [videoSrc, setVideoSrc] = useState('');
+
+  useEffect(() => {
+    // Delay loading the 7.25MB video background to prioritize critical rendering path (fonts, text)
+    const timer = setTimeout(() => {
+      setVideoSrc('/videos/hero.mp4');
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -52,10 +62,11 @@ export default function Hero() {
         muted
         loop
         playsInline
+        preload="none"
         poster="/images/hero-poster.jpg"
         onLoadedData={() => setVideoLoaded(true)}
       >
-        <source src="/videos/hero.mp4" type="video/mp4" />
+        {videoSrc && <source src={videoSrc} type="video/mp4" />}
       </video>
 
       {/* Gradient Overlays */}
