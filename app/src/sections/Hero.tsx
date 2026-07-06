@@ -50,7 +50,7 @@ export default function Hero() {
     return () => ctx.revert();
   }, [videoLoaded]);
 
-  const titleWords = 'Make the difference, One Child at a Time'.split(' ');
+  const titleWords = 'Making the difference, One Child at a Time'.split(' ');
 
   return (
     <section ref={sectionRef} className="relative w-full overflow-hidden" style={{ height: '100vh' }}>

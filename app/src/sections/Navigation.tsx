@@ -8,10 +8,6 @@ const navLinks = [
   { label: 'Contact', href: '#contact' },
 ];
 
-const logo = [
-  "/images/blacquake.png",
-];
-
 export default function Navigation() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -55,9 +51,12 @@ export default function Navigation() {
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
           >
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <img src="/images/blancquake.png" alt="logo" loading="lazy" />
-            </svg>
+            <img
+              src="/images/blancquake.png"
+              alt="Blancquake Foundation logo"
+              loading="lazy"
+              className="h-8 w-8 object-contain"
+            />
             <span className="text-white font-body text-sm font-medium tracking-wide">
               Blancquake Foundation
             </span>

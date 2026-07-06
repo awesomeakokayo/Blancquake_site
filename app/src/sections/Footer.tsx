@@ -74,12 +74,13 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-12">
           {/* Column 1 - Logo */}
           <div>
-            <div className="flex items-center gap-2 mb-4 opacity-40">
-              <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-                <path d="M16 2C8.268 2 2 8.268 2 16s6.268 14 14 14" stroke="#F7C518" strokeWidth="2" fill="none" />
-                <path d="M16 2c7.732 0 14 6.268 14 14s-6.268 14-14 14" stroke="#C14B3C" strokeWidth="2" fill="none" />
-                <circle cx="16" cy="16" r="5" fill="#F7C518" />
-              </svg>
+            <div className="flex items-center gap-2 mb-4 opacity-100">
+              <img
+                src="/images/blancquake.png"
+                alt="Blancquake Foundation logo"
+                loading="lazy"
+                className="h-7 w-7 object-contain"
+              />
               <span className="text-white font-body text-sm font-medium">Blancquake Foundation</span>
             </div>
             <p className="font-body text-white/40 text-xs font-light">
