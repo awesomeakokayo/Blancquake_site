@@ -88,7 +88,7 @@ export default function Contact() {
             <div className="space-y-6 mb-10">
               <div className="animate-in flex items-center gap-4">
                 <MailIcon />
-                <span className="font-body text-white/80 font-light text-base">hello@blancquake.org</span>
+                <span className="font-body text-white/80 font-light text-base">blancquakefoundation@gmail.com</span>
               </div>
               <div className="animate-in flex items-center gap-4">
                 <PhoneIcon />

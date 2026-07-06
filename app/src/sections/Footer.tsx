@@ -84,7 +84,7 @@ export default function Footer() {
               <span className="text-white font-body text-sm font-medium">Blancquake Foundation</span>
             </div>
             <p className="font-body text-white/40 text-xs font-light">
-              &copy; 2025 Blancquake Foundation. All rights reserved.
+              &copy; 2026 Blancquake Foundation. All rights reserved.
             </p>
           </div>
 
