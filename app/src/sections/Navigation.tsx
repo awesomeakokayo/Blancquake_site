@@ -8,6 +8,10 @@ const navLinks = [
   { label: 'Contact', href: '#contact' },
 ];
 
+const logo = [
+  "/images/blacquake.png",
+];
+
 export default function Navigation() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -37,19 +41,26 @@ export default function Navigation() {
         className="fixed top-0 left-0 w-full z-50 transition-all duration-300 ease-in-out"
         style={{
           height: 64,
-          backgroundColor: scrolled ? 'rgba(44, 42, 107, 0.9)' : 'transparent',
-          backdropFilter: scrolled ? 'blur(8px)' : 'none',
+          backgroundColor: scrolled ? "rgba(44, 42, 107, 0.9)" : "transparent",
+          backdropFilter: scrolled ? "blur(8px)" : "none",
         }}
       >
         <div className="flex items-center justify-between h-full px-5 md:px-10 max-w-[1440px] mx-auto">
           {/* Logo */}
-          <a href="#" className="flex items-center gap-2" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+          <a
+            href="#"
+            className="flex items-center gap-2"
+            onClick={(e) => {
+              e.preventDefault();
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          >
             <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <path d="M16 2C8.268 2 2 8.268 2 16s6.268 14 14 14" stroke="#F7C518" strokeWidth="2" fill="none" />
-              <path d="M16 2c7.732 0 14 6.268 14 14s-6.268 14-14 14" stroke="#C14B3C" strokeWidth="2" fill="none" />
-              <circle cx="16" cy="16" r="5" fill="#F7C518" />
+              <img src="/images/blancquake.png" alt="logo" loading="lazy" />
             </svg>
-            <span className="text-white font-body text-sm font-medium tracking-wide">Blancquake Foundation</span>
+            <span className="text-white font-body text-sm font-medium tracking-wide">
+              Blancquake Foundation
+            </span>
           </a>
 
           {/* Desktop Nav */}
@@ -71,7 +82,7 @@ export default function Navigation() {
           <div className="hidden lg:block">
             <a
               href="#donate"
-              onClick={(e) => handleNavClick(e, '#donate')}
+              onClick={(e) => handleNavClick(e, "#donate")}
               className="bg-[#C14B3C] text-white font-body text-sm font-medium px-6 py-2 rounded-full hover:bg-[#A33D30] transition-colors duration-300"
             >
               Donate
@@ -84,9 +95,15 @@ export default function Navigation() {
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Toggle menu"
           >
-            <span className={`w-6 h-0.5 bg-white transition-all duration-300 ${menuOpen ? 'rotate-45 translate-y-2' : ''}`} />
-            <span className={`w-6 h-0.5 bg-white transition-all duration-300 ${menuOpen ? 'opacity-0' : ''}`} />
-            <span className={`w-6 h-0.5 bg-white transition-all duration-300 ${menuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+            <span
+              className={`w-6 h-0.5 bg-white transition-all duration-300 ${menuOpen ? "rotate-45 translate-y-2" : ""}`}
+            />
+            <span
+              className={`w-6 h-0.5 bg-white transition-all duration-300 ${menuOpen ? "opacity-0" : ""}`}
+            />
+            <span
+              className={`w-6 h-0.5 bg-white transition-all duration-300 ${menuOpen ? "-rotate-45 -translate-y-2" : ""}`}
+            />
           </button>
         </div>
       </nav>
@@ -94,9 +111,11 @@ export default function Navigation() {
       {/* Mobile Menu Overlay */}
       <div
         className={`fixed inset-0 z-40 lg:hidden transition-all duration-500 ${
-          menuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          menuOpen
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none"
         }`}
-        style={{ backgroundColor: 'rgba(44, 42, 107, 0.97)' }}
+        style={{ backgroundColor: "rgba(44, 42, 107, 0.97)" }}
       >
         <div className="flex flex-col items-center justify-center h-full gap-8">
           {navLinks.map((link, i) => (
@@ -106,9 +125,9 @@ export default function Navigation() {
               onClick={(e) => handleNavClick(e, link.href)}
               className="text-white font-heading text-3xl transition-all duration-500"
               style={{
-                transitionDelay: menuOpen ? `${i * 100}ms` : '0ms',
+                transitionDelay: menuOpen ? `${i * 100}ms` : "0ms",
                 opacity: menuOpen ? 1 : 0,
-                transform: menuOpen ? 'translateY(0)' : 'translateY(20px)',
+                transform: menuOpen ? "translateY(0)" : "translateY(20px)",
               }}
             >
               {link.label}
@@ -116,12 +135,12 @@ export default function Navigation() {
           ))}
           <a
             href="#donate"
-            onClick={(e) => handleNavClick(e, '#donate')}
+            onClick={(e) => handleNavClick(e, "#donate")}
             className="bg-[#C14B3C] text-white font-body text-lg font-medium px-8 py-3 rounded-full mt-4 transition-all duration-500"
             style={{
-              transitionDelay: menuOpen ? '500ms' : '0ms',
+              transitionDelay: menuOpen ? "500ms" : "0ms",
               opacity: menuOpen ? 1 : 0,
-              transform: menuOpen ? 'translateY(0)' : 'translateY(20px)',
+              transform: menuOpen ? "translateY(0)" : "translateY(20px)",
             }}
           >
             Donate
