@@ -150,7 +150,7 @@ export default function Footer() {
         </div>
 
         {/* Bottom Row */}
-        <div className="border-t g-4 border-white/10 pt-6 text-center">
+        <div className="border-t gap-8 border-white/10 pt-6 text-center">
           <p className="font-heading text-white/25 text-sm">
             Made with care for every child.
           </p>
