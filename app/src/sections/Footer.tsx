@@ -67,7 +67,7 @@ export default function Footer() {
     <footer
       ref={footerRef}
       className="w-full"
-      style={{ backgroundColor: '#1A1940', paddingTop: 64, paddingBottom: 32 }}
+      style={{ backgroundColor: "#1A1940", paddingTop: 64, paddingBottom: 32 }}
     >
       <div className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-20">
         {/* Top Row */}
@@ -81,7 +81,9 @@ export default function Footer() {
                 loading="lazy"
                 className="h-7 w-7 object-contain"
               />
-              <span className="text-white font-body text-sm font-medium">Blancquake Foundation</span>
+              <span className="text-white font-body text-sm font-medium">
+                Blancquake Foundation
+              </span>
             </div>
             <p className="font-body text-white/40 text-xs font-light">
               &copy; 2026 Blancquake Foundation. All rights reserved.
@@ -97,7 +99,9 @@ export default function Footer() {
                   href={`#${link.toLowerCase()}`}
                   onClick={(e) => {
                     e.preventDefault();
-                    document.querySelector(`#${link.toLowerCase()}`)?.scrollIntoView({ behavior: 'smooth' });
+                    document
+                      .querySelector(`#${link.toLowerCase()}`)
+                      ?.scrollIntoView({ behavior: "smooth" });
                   }}
                   className="font-body text-white/60 text-sm hover:text-white transition-colors duration-300"
                 >
@@ -109,18 +113,36 @@ export default function Footer() {
 
           {/* Column 3 - Social */}
           <div>
-            <span className="font-body text-white/60 text-sm block mb-3">Follow Us</span>
+            <span className="font-body text-white/60 text-sm block mb-3">
+              Follow Us
+            </span>
             <div className="flex gap-4 text-white/50">
-              <a href="#" className="hover:text-[#F7C518] transition-colors duration-300" onClick={(e) => e.preventDefault()}>
+              <a
+                href="#"
+                className="hover:text-[#F7C518] transition-colors duration-300"
+                onClick={(e) => e.preventDefault()}
+              >
                 <LinkedInIcon />
               </a>
-              <a href="#" className="hover:text-[#F7C518] transition-colors duration-300" onClick={(e) => e.preventDefault()}>
+              <a
+                href="#"
+                className="hover:text-[#F7C518] transition-colors duration-300"
+                onClick={(e) => e.preventDefault()}
+              >
                 <InstagramIcon />
               </a>
-              <a href="#" className="hover:text-[#F7C518] transition-colors duration-300" onClick={(e) => e.preventDefault()}>
+              <a
+                href="#"
+                className="hover:text-[#F7C518] transition-colors duration-300"
+                onClick={(e) => e.preventDefault()}
+              >
                 <TwitterIcon />
               </a>
-              <a href="#" className="hover:text-[#F7C518] transition-colors duration-300" onClick={(e) => e.preventDefault()}>
+              <a
+                href="#"
+                className="hover:text-[#F7C518] transition-colors duration-300"
+                onClick={(e) => e.preventDefault()}
+              >
                 <FacebookIcon />
               </a>
             </div>
@@ -128,9 +150,13 @@ export default function Footer() {
         </div>
 
         {/* Bottom Row */}
-        <div className="border-t border-white/10 pt-6 text-center">
+        <div className="border-t g-4 border-white/10 pt-6 text-center">
           <p className="font-heading text-white/25 text-sm">
             Made with care for every child.
+          </p>
+
+          <p className="font-heading text-white/25 text-sm">
+            Built by AwesomeAkokayo
           </p>
         </div>
       </div>

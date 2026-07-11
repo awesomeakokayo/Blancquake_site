@@ -92,11 +92,11 @@ export default function Contact() {
               </div>
               <div className="animate-in flex items-center gap-4">
                 <PhoneIcon />
-                <span className="font-body text-white/80 font-light text-base">+234 (0) 7015391755</span>
+                <span className="font-body text-white/80 font-light text-base">+234 (0) 701 5391 755</span>
               </div>
               <div className="animate-in flex items-center gap-4">
                 <LocationIcon />
-                <span className="font-body text-white/80 font-light text-base">Lagos, Nigeria</span>
+                <span className="font-body text-white/80 font-light text-base">Nigeria</span>
               </div>
             </div>
 
