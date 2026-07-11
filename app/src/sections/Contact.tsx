@@ -92,7 +92,7 @@ export default function Contact() {
               </div>
               <div className="animate-in flex items-center gap-4">
                 <PhoneIcon />
-                <span className="font-body text-white/80 font-light text-base">+234 (0) 800 BLANCQUAKE</span>
+                <span className="font-body text-white/80 font-light text-base">+234 (0) 7015391755</span>
               </div>
               <div className="animate-in flex items-center gap-4">
                 <LocationIcon />
